@@ -1,0 +1,97 @@
+#!/usr/bin/python2
+
+import getpass
+import subprocess
+import sys
+import argparse
+import os
+
+class GpgCryptTool:
+
+    def __init__(self,**kwargs):
+        if "verbose" in kwargs:
+            self._verbose = kwargs["verbose"]
+        else:
+            self._verbose = False
+        if "cipher" in kwargs:
+            self._cipher = kwargs["cipher"]
+        else:
+            self._cipher = "AES256"
+        if "delete_old" in kwargs:
+            self._deleteOld = kwargs["delete_old"]
+        else:
+            self._deleteOld = False
+    
+    def printErr(self,s):
+        print >> sys,stderr, s
+
+    def printVerbose(self,msg,newline=True):
+        if self._verbose == True:
+            if newline == True:
+                print msg
+            else:
+                print msg,
+
+    def encrypt(self,infile,outfile):
+        passphrase = self._getPass()
+        if  outfile == None:
+            ret = self._gpg("--passphrase",passphrase,"--cipher-algo",self._cipher,"-c", infile)
+        else:
+            ret = self._gpg("--passphrase",passphrase,"--cipher-algo",self._cipher, "--output", outfile, "-c", infile)
+        if self._deleteOld == True and ret == 0:
+            self.printVerbose("Unlinking old file...",False)
+            os.unlink(infile)
+            self.printVerbose(" done.")
+        return ret
+
+    def decrypt(self,infile,outfile):
+        passphrase = self._getPass()
+        ret = self._gpg("-d","--passphrase",passphrase,"--output",outfile,infile)
+        if self._deleteOld == True and ret == 0:
+            self.printVerbose("Unlinking old file...",False)
+            os.unlink(infile)
+            self.printVerbose(" done.")
+        return ret
+    
+    def _getPass(self):
+        return getpass.getpass("Enter passphrase: ")
+
+    def _gpg(self,*cmd):
+        quiet = ["-q"] if self._verbose == False else []
+        c = ["/usr/bin/gpg","--batch"] + quiet + list(cmd)
+        return subprocess.call(c)
+
+
+
+def setUpArgParser():
+    argparser =  argparse.ArgumentParser(description="Encrypt/decrypt files using gpg")
+    argparser.add_argument("command",help="command to perform: encrypt or decrypt a file",choices=["encrypt","e","decrypt","d"])
+    argparser.add_argument("inputfile",help="the file to encrypt or decrypt")
+    argparser.add_argument("-o","--outputfile",metavar="outputfile",help="name of the outputfile",default=None)
+    argparser.add_argument("--delete-old","-D",action="store_true",default=False,help="delete input file after successful encryption/decryption (default is to keep the file)")
+    argparser.add_argument("--verbose","-v",action="store_true",default=False,help="verbose output")
+    argparser.add_argument("--cipher","-c",default="AES256",help="cipher algorithm to use (default is 'AES256')")
+    return argparser
+
+
+if __name__ == "__main__":
+    argparser = setUpArgParser()
+    args = argparser.parse_args()
+    
+    tool = GpgCryptTool(verbose=args.verbose,delete_old=args.delete_old,cipher=args.cipher)
+
+    if args.command in ["encrypt","e"]:
+        ret = tool.encrypt(args.inputfile,args.outputfile)
+    elif args.command in ["decrypt","d"]:
+        infile= args.inputfile
+        if args.outputfile != None:
+            outfile = args.outputfile
+        else:
+            if infile.endswith(".gpg"):
+                outfile= infile[:infile.rfind(".gpg")]
+            else:
+                outfile = infile + ".decrypted"
+        ret = tool.decrypt(infile,outfile)
+    else:
+        tool.printErr("How could this have happened? I cannot go on... goodbye cruel world!")
+    exit(ret)
