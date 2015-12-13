@@ -41,10 +41,15 @@ class SubFile:
 
     def handle(self, line):
         for pattern, sub in self._patterns:
+            debug("trying pattern '%s'", pattern.pattern)
             intervals = pattern.finditer(line)
+            matchFound = False
             for match in intervals:
                 line = line[:match.start()] + sub + line[match.end():]
-            return line
+                matchFound = True
+            if matchFound:
+                break
+        return line
 
     def name(self) -> str:
         return self._name
