@@ -1,0 +1,43 @@
+#! /bin/env python3
+
+import argparse
+import re
+
+DEFAULT_MIRRORLIST_FILE = "/etc/pacman.d/mirrorlist.pacnew"
+
+def enable_mirrors(path, countries):
+    if len(countries) == 0:
+        expression = re.compile("^##\s*((\w|\s)*)\s*$", re.IGNORECASE)
+    else:
+        expression = re.compile("^##\s*((" + "|".join(countries) +  "|\s)*)\s*$", re.IGNORECASE)
+    with open(path, "r") as f:
+        enabling = False
+        for line in f:
+            if not line.startswith("#Server"):
+                enabling = False
+            m = expression.match(line)
+            if m:
+                enabling = True
+            if enabling and line.startswith("#Server"):
+                print(line[1:], end="")
+            else:
+                print(line, end="")
+
+def main():
+    parser = argparse.ArgumentParser(prog="enable-mirrors", description="Enable pacman mirrors by country")
+    parser.add_argument("countries",
+            type=str,
+            nargs="*",
+            help="List of countries to enable (case insensitive). No arguments means: 'enable all'.")
+    parser.add_argument("--filename", "-f",
+            dest="filename",
+            default=None,
+            type=str,
+            help="Path to mirrorlist file. If not specified, {:s} is used.".format(DEFAULT_MIRRORLIST_FILE))
+    args = parser.parse_args()
+    if args.filename is None:
+        args.filename = DEFAULT_MIRRORLIST_FILE
+    enable_mirrors(args.filename, args.countries)
+
+if __name__ == "__main__":
+    main()
