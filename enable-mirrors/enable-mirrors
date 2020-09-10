@@ -5,39 +5,58 @@ import re
 
 DEFAULT_MIRRORLIST_FILE = "/etc/pacman.d/mirrorlist.pacnew"
 
-def enable_mirrors(path, countries):
+
+def enable_mirrors(path, countries, no_auth):
     if len(countries) == 0:
-        expression = re.compile("^##\s*((\w|\s)*)\s*$", re.IGNORECASE)
+        country_expression = re.compile(r"^##\s*((\w|\s)*)\s*$", re.IGNORECASE)
     else:
-        expression = re.compile("^##\s*((" + "|".join(countries) +  "|\s)*)\s*$", re.IGNORECASE)
+        country_expression = re.compile(
+            r"^##\s*((" + "|".join(countries) + r"|\s)*)\s*$", re.IGNORECASE)
+    enable_expression = re.compile(r"^#Server\s*=\s*(\w+)://.*", re.IGNORECASE)
     with open(path, "r") as f:
         enabling = False
         for line in f:
             if not line.startswith("#Server"):
                 enabling = False
-            m = expression.match(line)
-            if m:
+            if country_expression.match(line):
                 enabling = True
-            if enabling and line.startswith("#Server"):
+            m_result = enable_expression.match(line)
+            if enabling and m_result != None and (no_auth or m_result.group(1)
+                                                  == "https"):
                 print(line[1:], end="")
             else:
                 print(line, end="")
 
+
 def main():
-    parser = argparse.ArgumentParser(prog="enable-mirrors", description="Enable pacman mirrors by country")
-    parser.add_argument("countries",
-            type=str,
-            nargs="*",
-            help="List of countries to enable (case insensitive). No arguments means: 'enable all'.")
-    parser.add_argument("--filename", "-f",
-            dest="filename",
-            default=None,
-            type=str,
-            help="Path to mirrorlist file. If not specified, {:s} is used.".format(DEFAULT_MIRRORLIST_FILE))
+    parser = argparse.ArgumentParser(
+        prog="enable-mirrors", description="Enable pacman mirrors by country")
+    parser.add_argument(
+        "countries",
+        type=str,
+        nargs="*",
+        help=
+        "List of countries to enable (case insensitive). No arguments means: 'enable all'."
+    )
+    parser.add_argument(
+        "--filename",
+        "-f",
+        dest="filename",
+        default=None,
+        type=str,
+        help="Path to mirrorlist file. If not specified, {:s} is used.".format(
+            DEFAULT_MIRRORLIST_FILE))
+    parser.add_argument("--no-auth",
+                        "-N",
+                        dest="no_auth",
+                        default=False,
+                        type=bool,
+                        help="Also use non-https URLs")
     args = parser.parse_args()
     if args.filename is None:
         args.filename = DEFAULT_MIRRORLIST_FILE
-    enable_mirrors(args.filename, args.countries)
+    enable_mirrors(args.filename, args.countries, args.no_auth)
+
 
 if __name__ == "__main__":
     main()
