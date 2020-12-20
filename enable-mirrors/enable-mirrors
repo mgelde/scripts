@@ -11,7 +11,7 @@ import urllib.parse as urlparse
 
 DEFAULT_MIRRORLIST_FILE = "/etc/pacman.d/mirrorlist.pacnew"
 
-DEFAULT_DOWNLOAD_URL = "https://www.archlinux.org/mirrorlist/?"
+DEFAULT_DOWNLOAD_URL = "https://archlinux.org/mirrorlist/?"
 
 
 def enable_mirrors(path, countries, no_auth):
